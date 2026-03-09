@@ -4,27 +4,27 @@ Production-style Python project to extract structured match data from VALORANT g
 
 This project supports:
 - Single video analysis (`.mp4` input)
-- Recursive folder analysis (process every child folder containing videos)
+- Folder analysis (scans only that folder by default)
 - Per-video kill extraction with timestamps
-- Shared `map` and `agent` output at folder level
+- Per-kill details (`site_name`, `weapon_used`, banner/score debug)
 
 ---
 
 ## 1. What The Project Extracts
 
 For each video:
-- `map`
 - `agent`
 - `kills`
 - `kill_events` (timestamp list)
+- `kill_event_details`:
+  - `site_name`
+  - `weapon_used`
+  - kill-feed/banner confidence fields
 
 For folder mode:
-- One JSON file per video-containing folder
-- Top-level `map` and `agent` shared for that folder
-- Per-video array elements with:
-  - `video_name`
-  - `kills`
-  - `kill_events`
+- One fresh JSON generated for the input folder
+- Top-level `agent_name`
+- Per-video array elements with kill breakdown
 
 ---
 
@@ -187,25 +187,35 @@ Example with options:
 python main.py gameplay.mp4 --player "Rangnar Lothbrok" --interval 0.5 --output output/result.json --log-level INFO
 ```
 
-## 8.2 Recursive folder mode
+## 8.2 Folder mode (non-recursive by default)
 
-Pass root path. Script scans recursively for `.mp4`.
+Pass a folder path. Script scans only that folder for `.mp4` by default.
 
 ```bash
 python main.py "E:\matches_root" --player "Rangnar Lothbrok"
 ```
 
 Behavior:
-- Every child folder with `.mp4` files is processed.
-- One JSON is written in that folder.
-- By default JSON filename is the folder name:
-  - `FolderA/FolderA.json`
-  - `FolderB/FolderB.json`
+- Only videos directly inside the given folder are processed.
+- One fresh JSON is written in that same folder.
+- Default filename is `<folder_name>.json`.
 
-Override output filename for all folders:
+Override output filename:
 
 ```bash
 python main.py "E:\matches_root" --output-name folder_result.json
+```
+
+Enable recursive scan when needed:
+
+```bash
+python main.py "E:\matches_root" --recursive
+```
+
+Debug OCR window (shows detected kill frame + OCR details) and pause on every kill:
+
+```bash
+python main.py "E:\matches_root" --debug-ocr --pause-on-kill --debug-dir output/debug_kill_events
 ```
 
 ---
@@ -216,13 +226,19 @@ python main.py "E:\matches_root" --output-name folder_result.json
 
 ```json
 {
-  "video": "match.mp4",
-  "map": "Ascent",
-  "agent": "Jett",
+  "video_name": "match.mp4",
+  "agent_name": "Jett",
   "kills": 2,
   "kill_events": [
     {"timestamp": 15.9},
     {"timestamp": 33.5}
+  ],
+  "kill_event_details": [
+    {
+      "timestamp": 15.9,
+      "site_name": "A",
+      "weapon_used": "Phantom"
+    }
   ]
 }
 ```
@@ -231,18 +247,26 @@ python main.py "E:\matches_root" --output-name folder_result.json
 
 ```json
 {
-  "map": "Ascent",
-  "agent": "Jett",
+  "folder": "E:\\matches_root\\BatchA",
+  "agent_name": "Jett",
   "videos": [
     {
       "video_name": "A.mp4",
       "kills": 1,
-      "kill_events": [{"timestamp": 15.9}]
+      "kill_events": [{"timestamp": 15.9}],
+      "kill_event_details": [
+        {
+          "timestamp": 15.9,
+          "site_name": "A",
+          "weapon_used": "Phantom"
+        }
+      ]
     },
     {
       "video_name": "B.mp4",
       "kills": 2,
-      "kill_events": [{"timestamp": 18.4}, {"timestamp": 29.6}]
+      "kill_events": [{"timestamp": 18.4}, {"timestamp": 29.6}],
+      "kill_event_details": []
     }
   ]
 }
@@ -318,15 +342,14 @@ Single file:
 python main.py VALORANTv2.mp4 --player "Rangnar Lothbrok" --output output/result_v2.json
 ```
 
-Folder root:
+Folder (scan only this folder):
 
 ```bash
 python main.py "E:\matches_root" --player "Rangnar Lothbrok"
 ```
 
-Folder root with fixed output name:
+Folder with fixed output name:
 
 ```bash
 python main.py "E:\matches_root" --player "Rangnar Lothbrok" --output-name folder_result.json
 ```
-
